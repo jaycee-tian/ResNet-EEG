@@ -1,10 +1,9 @@
-
-
 import argparse
 import os
 import numpy as np
 from sklearn.metrics import confusion_matrix
 import torch
+from prepare.eegdataset import FeatureEEGImageDataset
 from run.loss import ContrastiveLoss
 from prepare.data import filter_sample, filter_two_samples, mixup_data
 
@@ -12,6 +11,8 @@ from prepare.data import filter_sample, filter_two_samples, mixup_data
 import subprocess
 
 from utils.eegutils import get_pid
+
+DATA_PATH = '/data0/tianjunchao/dataset/CVPR2021-02785/data/img_pkl/32x32'
 
 
 class MyEarlyStopping:
@@ -37,13 +38,13 @@ class MyEarlyStopping:
             self.counter = 0
         self.prev_acc = acc
 # class MyEarlyStopping:
-    
+
 #     def __init__(self, patience=5):
 #         self.patience = patience
 #         self.counter = 0
 #         self.best_loss = float('inf')
 #         self.stop = False
-        
+
 #     # 连续5轮上升就停止
 #     def check(self, loss):
 #         if loss < self.best_loss:
@@ -56,10 +57,12 @@ class MyEarlyStopping:
 #             if self.counter > 2:
 #                 print('warning - early stopping counter:',self.counter)
 #         print('loss: %.3f, best loss: %.3f, counter: %d' % (loss, self.best_loss, self.counter))
-        
+
+
 def get_gpu_usage():
     """Returns a list of dictionaries containing GPU usage information."""
-    output = subprocess.check_output(['nvidia-smi', '--query-gpu=memory.used,memory.total', '--format=csv,nounits,noheader'], encoding='utf-8')
+    output = subprocess.check_output(
+        ['nvidia-smi', '--query-gpu=memory.used,memory.total', '--format=csv,nounits,noheader'], encoding='utf-8')
     lines = output.strip().split('\n')
     # print(lines)
     # gpu memory left percentage
@@ -71,59 +74,77 @@ def get_gpu_usage():
     # return least use gpu
     return gpu_info.index(min(gpu_info))
 
-def get_device(mode='auto',gpu=0):
+
+def get_device(mode='auto', gpu=0):
     if mode == 'auto':
-        device = torch.device(f"cuda:{get_gpu_usage()}" if torch.cuda.is_available() else "cpu")
+        device = torch.device(
+            f"cuda:{get_gpu_usage()}" if torch.cuda.is_available() else "cpu")
     else:
-        device = torch.device('cuda:'+str(gpu) if torch.cuda.is_available() else 'cpu')
-    print('device:',device)
+        device = torch.device(
+            'cuda:'+str(gpu) if torch.cuda.is_available() else 'cpu')
+    print('device:', device)
     return device
 
-def get_data_dir():
-    data_path = '/data0/tianjunchao/dataset/CVPR2021-02785/data/img_pkl/32x32'
-    return data_path
-
+def get_dataset(args):
+    return FeatureEEGImageDataset(path=DATA_PATH, n_channels=args.n_channels, grid_size=args.grid_size)
 
 def get_pretrain_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train for')
-    parser.add_argument('--lr', type=float, default=1e-4, help='learning rate. very important')
-    parser.add_argument('--model_name', type=str, default='resnet18', help='model name')
-    parser.add_argument('--batch_size', type=int, default=128, help='batch size for dataloader')
+    parser.add_argument('--epochs', type=int, default=100,
+                        help='number of epochs to train for')
+    parser.add_argument('--lr', type=float, default=1e-4,
+                        help='learning rate. very important')
+    parser.add_argument('--model_name', type=str,
+                        default='resnet18', help='model name')
+    parser.add_argument('--batch_size', type=int, default=128,
+                        help='batch size for dataloader')
     args = parser.parse_args()
     return args
 
+
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--target', type=str, default="run", help='use test dataset or not')
-    parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train for') 
+    parser.add_argument('--epochs', type=int, default=100,
+                        help='number of epochs to train for')
     parser.add_argument('--k', type=int, default=5, help='k-fold')
-    parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
-    parser.add_argument('--opt', type=str, default='mid', help='how to select images')
+    parser.add_argument('--lr', type=float, default=5e-4,
+                        help='learning rate')
+    parser.add_argument('--opt', type=str, default='mid',
+                        help='how to select images')
     # window_size
-    parser.add_argument('--window_size', type=int, default=20, help='window_size')
+    parser.add_argument('--window_size', type=int,
+                        default=20, help='window_size')
 # parser.add_argument('-weights', type=str, required=True, help='the weights file you want to test')
     # parser.add_argument('--gpu', type=int, default=7, help='use gpu')
     parser.add_argument('--grid_size', type=int, default=8, help='grid size')
     # no of channels
-    parser.add_argument('--n_channels', type=int, default=1, help='no of channels')
-    parser.add_argument('--batch_size', type=int, default=128, help='batch size for dataloader')
-    parser.add_argument('--simple', action='store_true', default=False, help='use simple dataset')
-    parser.add_argument('--diff', action='store_true', default=False, help='use diff dataset')
-    parser.add_argument('--model_name', type=str, default='resnet18', help='model name')
-    parser.add_argument('--ptr', type=str, default='yes', help='ptr weights')
-    parser.add_argument('--num_classes', type=int, default=40, help='num classes')
+    parser.add_argument('--n_channels', type=int,
+                        default=1, help='no of channels')
+    parser.add_argument('--batch_size', type=int, default=128,
+                        help='batch size for dataloader')
+    parser.add_argument('--simple', action='store_true',
+                        default=False, help='use simple dataset')
+    parser.add_argument('--diff', action='store_true',
+                        default=False, help='use diff dataset')
+    parser.add_argument('--model_name', type=str,
+                        default='resnet18', help='model name')
+    parser.add_argument('--pretrain', action='store_true', help='pretrain or not')
+    parser.add_argument('--num_classes', type=int,
+                        default=40, help='num classes')
     # 采样次数
-    parser.add_argument('--sample_times', type=int, default=8, help='sample_times')
+    parser.add_argument('--sample_times', type=int,
+                        default=8, help='sample_times')
     # alpha
     parser.add_argument('--alpha', type=float, default=1, help='alpha')
     # is_parallel
-    parser.add_argument('--is_parallel', type=str, default='no', help='is_parallel')
+    parser.add_argument('--is_parallel', type=str,
+                        default='no', help='is_parallel')
     args = parser.parse_args()
     args.pid = get_pid()
     return args
 
-def run(device, loader, model, summary, epoch, task='Test', alpha=0.0, smoothing=0.0, optimizer=None, lr_schedulers=None):
+
+def run(device, loader, model, summary, epoch, task='Test', alpha=0.0, smoothing=0.0, optimizer=None):
     correct = 0
     loss = 0
     y_true = []
@@ -146,30 +167,31 @@ def run(device, loader, model, summary, epoch, task='Test', alpha=0.0, smoothing
         #     x,y = filter_sample(x,y)
         # print(x.shape)
         n_samples += len(y)
-        if isinstance(x,list):
+        if isinstance(x, list):
             x = [i.to(device) for i in x]
         else:
             x = x.to(device)
         y = y.to(device)
         if task == 'Test':
-            batch_loss, y_ = test_one(model=model, x=x, y=y)
+            batch_loss, y_ = simple_test(model=model, x=x, y=y)
         else:
             if smoothing > 0:
-                smooth_y = smooth_labels(y,smoothing)
+                smooth_y = smooth_labels(y, smoothing)
             if is_mixup:
                 # 生成 mixup 后的数据和标签
-                mix_x, mix_y = mixup_data(x, y, epoch,alpha)
-                
+                mix_x, mix_y = mixup_data(x, y, epoch, alpha)
+
                 mix_x = mix_x.to(device)
                 mix_y = mix_y.to(device)
-                batch_loss, y_ = train(model=model, x=mix_x, y=mix_y, optimizer=optimizer)
+                batch_loss, y_ = train(
+                    model=model, x=mix_x, y=mix_y, optimizer=optimizer)
             elif is_smooth:
-                batch_loss, y_ = train_one(model=model, x=x, y=smooth_y, optimizer=optimizer)
+                batch_loss, y_ = simple_train(
+                    model=model, x=x, y=smooth_y, optimizer=optimizer)
             else:
-                batch_loss, y_ = train_one(model=model, x=x, y=y, optimizer=optimizer)
-            lr_schedulers[0].step()
-            lr_schedulers[1].step()
-
+                batch_loss, y_ = simple_train(
+                    model=model, x=x, y=y, optimizer=optimizer)
+                
         _, predicted = torch.max(y_, dim=1)
         y_true += y.tolist()
         y_pred += predicted.tolist()
@@ -178,12 +200,8 @@ def run(device, loader, model, summary, epoch, task='Test', alpha=0.0, smoothing
         loss += batch_loss.item()
         if task == 'Train':
             if step % 10 == 0:
-                summary.add_scalar(tag=task+' step Loss', scalar_value=batch_loss.item(), global_step=step+epoch*len(loader))
-        
-        
-
-
-
+                summary.add_scalar(
+                    tag=task+' step Loss', scalar_value=batch_loss.item(), global_step=step+epoch*len(loader))
 
     acc = correct / n_samples * 100
     loss /= len(loader)
@@ -213,13 +231,15 @@ def fusion_test(model, raw_x, diff_x,  y):
         loss = torch.nn.functional.cross_entropy(y_, y, reduction='sum')
     return loss, y_
 
+
 def distinct_permutation_np_random_shift(original_permutation):
     shift_amount = np.random.randint(1, len(original_permutation))  # 随机选择移位量
     original_permutation_np = np.array(original_permutation)
     new_permutation = np.roll(original_permutation_np, -shift_amount)
     return new_permutation.tolist()
 
-def con_loss_1(emb0,emb1,y):
+
+def con_loss_1(emb0, emb1, y):
 
     # get an index list of permutation of x
     contrastive_loss = ContrastiveLoss(margin=1.0)
@@ -229,29 +249,33 @@ def con_loss_1(emb0,emb1,y):
     return contrastive_loss(emb0, emb1, diff_emb0, diff_y)
 
 # contrastive loss
-def con_loss_2(emb0,emb1):
 
-        # 计算对比损失
-    cos=torch.nn.CosineSimilarity(dim=-1)
+
+def con_loss_2(emb0, emb1):
+
+    # 计算对比损失
+    cos = torch.nn.CosineSimilarity(dim=-1)
     temperature = 0.5
-    mu=5
+    mu = 5
     pos = cos(emb0, emb1)
     perm = torch.randperm(emb0.shape[0])
     neg = cos(emb0, emb0[perm])
-    logits = torch.cat([pos.reshape(-1,1), neg.reshape(-1,1)], dim=1)
+    logits = torch.cat([pos.reshape(-1, 1), neg.reshape(-1, 1)], dim=1)
     logits /= temperature
     labels = torch.zeros(emb0.shape[0]).to(emb0.device).long()
 
     return mu * torch.nn.functional.cross_entropy(logits, labels, reduction='sum')
 
-def train_one(model, x, y, optimizer):
+
+def simple_train(model, x, y, optimizer):
     model.train()
     optimizer.zero_grad()
-    _,_, y_ = model(x)
-    loss = torch.nn.functional.cross_entropy(y_, y, reduction='mean')
+    emb, out = model(x)
+    loss = torch.nn.functional.cross_entropy(out, y, reduction='mean')
     loss.backward()
     optimizer.step()
-    return loss, y_
+    return loss, out
+
 
 def train(model, x, y, optimizer):
     model.train()
@@ -267,17 +291,20 @@ def train(model, x, y, optimizer):
     # print('loss1: ',loss1.item())
     # loss = loss1 + loss3
     loss = loss1
-    
+
     loss.backward()
     optimizer.step()
     return loss, out0
 
-def test_one(model, x, y):
+
+def simple_test(model, x, y):
     model.eval()
     with torch.no_grad():
-        _,_, out = model(x)
+        emb, out = model(x)
         loss = torch.nn.functional.cross_entropy(out, y, reduction='mean')
     return loss, out
+
+
 def test(model, x, y):
     model.eval()
     with torch.no_grad():
@@ -495,9 +522,11 @@ def three_seperate_run(device, loader, n_samples, models, summary, epoch, task='
 def smooth_labels(targets, smoothing=0.2):
     num_classes = 40
     # 将目标标签转换为one-hot表示形式
-    targets_one_hot = torch.zeros(targets.size(0), num_classes, device=targets.device)
+    targets_one_hot = torch.zeros(targets.size(
+        0), num_classes, device=targets.device)
     targets_one_hot.scatter_(1, targets.view(-1, 1), 1)
 
     # 计算平滑后的标签分布
-    targets_smoothed = (1.0 - smoothing) * targets_one_hot + smoothing / num_classes
+    targets_smoothed = (1.0 - smoothing) * \
+        targets_one_hot + smoothing / num_classes
     return targets_smoothed

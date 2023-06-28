@@ -50,32 +50,28 @@ def count_fusion_dataset(dataloader):
 
 
 def get_simple_log_dir():
-    log_dir = './3.log/' + getNow() + '/'
+    log_dir = './tblog/' + getNow() + '/'
     return log_dir
 
 
-def get_log_dir(args, task):
-    log_dir = './3.log/' + getNow() + '/'
-    if args.target == 'test':
-        log_dir = './z-test/log' + getNow() + '/'
-    log_dir += task + '/' + args.model_name + '/' + \
-        args.ptr + '/' + str(args.lr)+'/' + get_pid() + '/'
-    return log_dir
+def get_log_dir(args):
+    return './tblog/' + getNow() + '/' + args.model_name + '/' + get_pid() + '/'
 
 
 def dct_2d(eeg):
     return cv2.dct(eeg)
 
+
 def approximated_dct(eeg):
-        # [t d]
+    # [t d]
     oo = ((eeg[::2, ::2] + eeg[1::2, ::2]) +
-        (eeg[::2, 1::2] + eeg[1::2, 1::2])) * 2
+          (eeg[::2, 1::2] + eeg[1::2, 1::2])) * 2
     ol = ((eeg[::2, ::2] + eeg[1::2, ::2]) -
-        (eeg[::2, 1::2] + eeg[1::2, 1::2])) * 2
+          (eeg[::2, 1::2] + eeg[1::2, 1::2])) * 2
     lo = ((eeg[::2, ::2] - eeg[1::2, ::2]) +
-        (eeg[::2, 1::2] - eeg[1::2, 1::2])) * 2
+          (eeg[::2, 1::2] - eeg[1::2, 1::2])) * 2
     ll = ((eeg[::2, ::2] - eeg[1::2, ::2]) -
-        (eeg[::2, 1::2] - eeg[1::2, 1::2])) * 2
+          (eeg[::2, 1::2] - eeg[1::2, 1::2])) * 2
     # [[oo, ol],
     # [lo, ll]]
     assert np.shape(oo) == np.shape(ll) == (256, 48)

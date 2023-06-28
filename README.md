@@ -2,7 +2,7 @@
 
 把原来的仓库迁移过来。
 
-tensorboard --logdir=3.log/0428
+tensorboard --logdir=tblog/0428
 
 tensorboard --logdir=3.log/feature/0418
 

@@ -2,15 +2,10 @@ import torch.nn as nn
 from torchvision import models
 import torch
 import torch.nn.functional as F
+from model.simple import get_pretrained_resnet, get_resnet
 
 from utils.eegutils import freeze_params
 
-
-resnet_name_A = 'resnet18'
-resnet_name_B = 'resnet34'
-resnet_name_C = 'resnet50'
-resnet_name_D = 'resnet101'
-resnet_name_E = 'resnet152'
 
 # Define the He initialization method
 def init_weights(m):
@@ -20,40 +15,11 @@ def init_weights(m):
         nn.init.constant_(m.weight, 1)
         nn.init.constant_(m.bias, 0)
 
-def get_model_no_pretrained(model_name):
-    if model_name == resnet_name_A:
-        model = models.resnet18(weights=None)
-    elif model_name == resnet_name_B:
-        model = models.resnet34(weights=None)
-    elif model_name == resnet_name_C:
-        model = models.resnet50(weights=None)
-    elif model_name == resnet_name_D:
-        model = models.resnet101(weights=None)
-    elif model_name == resnet_name_E:
-        model = models.resnet152(weights=None)
-    else:
-        raise Exception('model name error')
-    return model
-
-def get_model(model_name):
-    if model_name == resnet_name_A:
-        model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-    elif model_name == resnet_name_B:
-        model = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
-    elif model_name == resnet_name_C:
-        model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
-    elif model_name == resnet_name_D:
-        model = models.resnet101(weights=models.ResNet101_Weights.DEFAULT)
-    elif model_name == resnet_name_E:
-        model = models.resnet152(weights=models.ResNet152_Weights.DEFAULT)
-    else:
-        raise Exception('model name error')
-    return model
 
 class ResNetC3(nn.Module):
     def __init__(self, num_classes=40, model_name='resnet101', pretrained=True):
         super().__init__()
-        self.resnet = get_model(model_name)
+        self.resnet = get_pretrained_resnet(model_name)
         if pretrained == False:
             self.resnet.apply(init_weights)
         else:
@@ -98,9 +64,9 @@ class TesNet(nn.Module):
     def __init__(self, num_classes=40, model_name='resnet18', pretrained=True):
         super().__init__()
         if pretrained == False:
-            resnet = get_model_no_pretrained(model_name)
+            resnet = get_resnet(model_name)
         else:
-            resnet = get_model(model_name)
+            resnet = get_pretrained_resnet(model_name)
         self.fea_e = nn.Sequential(*list(resnet.children()))[:-1]
         self.pro_h = ProjectionHead(input_dim=resnet.fc.in_features)
         self.cls_h = ClassifierHead(input_dim=resnet.fc.in_features, output_dim=num_classes)
@@ -115,32 +81,6 @@ class TesNet(nn.Module):
     def load(self, model_path):
         self.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
         print('load pretrained model from {}'.format(model_path))
-
-class ResNet(nn.Module):
-    def __init__(self, num_classes=40, model_name='resnet18', pretrained=True):
-        super().__init__()
-        resnet = get_model(model_name)
-        if pretrained == False:
-            resnet.apply(init_weights)
-        # else:
-        #     freeze_params(self.resnet)
-        
-        self.feature_extractor = nn.Sequential(*list(resnet.children()))[:-1]
-        self.fc = nn.Linear(resnet.fc.in_features, num_classes)
-
-        # 替换ResNet模型的FC层
-        # self.resnet.fc = nn.Sequential(
-        #     nn.Linear(in_features, 1024),
-        #     nn.ReLU(inplace=True),
-        #     nn.Dropout(p=0.5),
-        #     nn.Linear(1024, num_classes) # num_classes表示分类器的输出类别数
-        # )
-    
-    def forward(self, x):
-        embedding = self.feature_extractor(x).squeeze()
-        output = self.fc(embedding).squeeze()
-        return output, embedding
-    
 
 class IceResNet101(nn.Module):
     def __init__(self, num_classes=40):
