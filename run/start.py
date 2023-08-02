@@ -86,7 +86,7 @@ def get_device(mode='auto', gpu=0):
     return device
 
 def get_dataset(args):
-    return FeatureEEGImageDataset(path=DATA_PATH, n_channels=args.n_channels, grid_size=args.grid_size)
+    return FeatureEEGImageDataset(path=DATA_PATH, n_channels=args.n_channels, grid_size=args.grid_size, feature=args.feature,feature_rate=args.feature_rate)
 
 def get_pretrain_args():
     parser = argparse.ArgumentParser()
@@ -109,7 +109,7 @@ def get_args():
     parser.add_argument('--k', type=int, default=5, help='k-fold')
     parser.add_argument('--lr', type=float, default=5e-4,
                         help='learning rate')
-    parser.add_argument('--opt', type=str, default='mid',
+    parser.add_argument('--opt', type=str, default='avg',
                         help='how to select images')
     # window_size
     parser.add_argument('--window_size', type=int,
@@ -128,6 +128,9 @@ def get_args():
                         default=False, help='use diff dataset')
     parser.add_argument('--model_name', type=str,
                         default='resnet18', help='model name')
+    parser.add_argument('--feature', type=str,
+                        default='dct', help='dct, wavelet, all, none')
+    parser.add_argument('--feature_rate', type=float, default=0.25, help='0, 0.25, 0.5, 0.75, 1')
     parser.add_argument('--pretrain', action='store_true', help='pretrain or not')
     parser.add_argument('--num_classes', type=int,
                         default=40, help='num classes')

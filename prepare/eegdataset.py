@@ -314,12 +314,10 @@ class GeneralEEGImageDataset(BaseEEGImageDataset):
         return x, y
 
 # EEG feature 图像，64个小图，随机挑16个用wavelet, 随机挑16个用dct
-
-
 class FeatureEEGImageDataset(BaseEEGImageDataset):
 
-    # 默认3通道，8x8拼图，不滑动平均，不用差分，不用差分降序, 取一段时间的平均
-    def __init__(self, path, n_channels=3, grid_size=8, window_size=0, diff=False, desc=False, opt='avg'):
+    # 默认1通道，8x8拼图，不滑动平均，不用差分，不用差分降序, 取一段时间的平均
+    def __init__(self, path, n_channels=1, grid_size=8, window_size=0, diff=False, desc=False, opt='avg', feature='none', feature_rate=0.25):
         super().__init__(path)
         self.n_channels = n_channels
         self.grid_size = grid_size
@@ -327,6 +325,8 @@ class FeatureEEGImageDataset(BaseEEGImageDataset):
         self.diff = diff
         self.desc = desc
         self.opt = opt
+        self.feature = feature
+        self.feature_num = grid_size*grid_size*feature_rate
 
     def __getitem__(self, idx):
         filepath = self.filepaths[idx]
@@ -354,15 +354,17 @@ class FeatureEEGImageDataset(BaseEEGImageDataset):
             else:
                 segments = divide_simple_segments(x, self.grid_size)
 
-            if self.n_channels == 1:
-                x = get_1C_feature_img(segments, self.grid_size, self.opt, feature_num=16, use_dct=True, use_wavelet=True)
-            elif self.n_channels == 3:
-                # avg, max, min
-                x = get_3C_img(segments, self.grid_size)
+            if self.feature == 'dct':
+                x = get_dct_img(segments, self.grid_size, self.opt, feature_num=self.feature_num)
+            elif self.feature == 'wavelet':
+                x = get_wavelet_img(segments, self.grid_size, self.opt, feature_num=self.feature_num)
+            elif self.feature =='all':
+                x = get_all_img(segments, self.grid_size, self.opt, feature_num=self.feature_num)
+            else:
+                x = get_raw_img(segments, self.grid_size, self.opt)
 
             y = int(pickle.load(f))
             assert 0 <= y <= 39
-            # y = torch.tensor(y, dtype=torch.long)
 
         return x, y
 

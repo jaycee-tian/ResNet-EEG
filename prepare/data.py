@@ -1,14 +1,13 @@
 import random
 import numpy as np
-from scipy.fft import dct
 import torch
 import pywt
 from utils.eegutils import clip_img, clip_imgs
 import numpy as np
 
+import torch_dct as dct_2d
 import torch
 import numpy as np
-import torch.nn.functional as F
 
 class PatchIndex:
     def __init__(self, grid_size):
@@ -307,7 +306,7 @@ def get_dct_image_list(image_list, indexes):
     dct_image_list = []
     for index in indexes:
         image = image_list[index]
-        dct_image = dct(image)
+        dct_image = dct_2d(image)
         dct_image_list.append(dct_image)
     return dct_image_list
 
@@ -315,15 +314,17 @@ def get_wavelet_image_list(image_list, indexes):
     wavelet_image_list = []
     for index in indexes:
         image = image_list[index]
-        coeffs = pywt.dwt2(image, 'haar')
-        LL, (LH, HL, HH) = coeffs
-        # 将四个系数矩阵拼接成原始图像
-        image = np.vstack((np.hstack((LL, LH)), np.hstack((HL, HH))))
-
-        wavelet_image_list.append(image)
+        # 将torch张量转为numpy数组进行小波变换
+        wavelet_img_np = np.zeros_like(image, dtype=np.float32)
+        for i in range(3):
+            coeffs = pywt.dwt2(image, 'haar')
+            LL, (LH, HL, HH) = coeffs
+            # 将四个系数矩阵拼接成原始图像
+            image = np.vstack((np.hstack((LL, LH)), np.hstack((HL, HH))))
+        wavelet_image_list.append(wavelet_img_np)
     return wavelet_image_list
 
-def get_1C_feature_img(segments, grid_size, opt='avg', feature_num=0, use_dct=False, use_wavelet=False):
+def get_img(segments, grid_size, opt='avg', feature_num=0, use_dct=False, use_wavelet=False):
     img_size = segments[0].shape[1]
     # count_segments(segments)
     image_list = get_image_list(segments, opt=opt)
@@ -367,6 +368,18 @@ def get_1C_feature_img(segments, grid_size, opt='avg', feature_num=0, use_dct=Fa
         
     return torch.tensor(clip_img(large_image), dtype=torch.float).repeat(3, 1, 1)
 
+
+def get_all_img(segments, grid_size, opt='avg', feature_num=16):
+    return get_img(segments=segments, grid_size=grid_size, opt=opt, feature_num=feature_num, use_dct=True, use_wavelet=True)
+
+def get_raw_img(segments, grid_size, opt='avg'):
+    return get_img(segments=segments, grid_size=grid_size, opt=opt, feature_num=0, use_dct=False, use_wavelet=False)
+
+def get_dct_img(segments, grid_size, opt='avg', feature_num=16):
+    return get_img(segments=segments, grid_size=grid_size, opt=opt, feature_num=feature_num, use_dct=True, use_wavelet=False)
+
+def get_wavelet_img(segments, grid_size, opt='avg', feature_num=16):
+    return get_img(segments=segments, grid_size=grid_size, opt=opt, feature_num=feature_num, use_dct=False, use_wavelet=True)
 
 def get_1C_img(segments, grid_size, opt='avg'):
     img_size = segments[0].shape[1]

@@ -1,16 +1,14 @@
 from model.simple import ResNet
-from prepare.eegdataset import C_GeneralEEGImageDataset, GeneralEEGImageDataset, GeneralEEGPointDataset, MySubset, FeatureEEGImageDataset
+from prepare.eegdataset import MySubset
 from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader
 import torch
 
 from torch.utils.tensorboard import SummaryWriter
 from run.others import SmallNet, SimpleCNN
-from utils.eegutils import get_test_setting, get_log_dir
-from prepare.show import get_material_dir, plot_tsne
+from utils.eegutils import get_log_dir
 from run.start import get_args, get_dataset, get_device, MyEarlyStopping, run
 import torchvision.transforms as transforms
-from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR
 
 args = get_args()
 
@@ -34,8 +32,8 @@ print('args: ', args)
 
 for fold, (train_ids, valid_ids) in enumerate(k_fold.split(dataset)):
 
-    if fold > 0:
-        break
+    # if fold > 0:
+    #     break
 
     train_dataset = MySubset(dataset, train_ids, train_transforms)
     valid_dataset = MySubset(dataset, valid_ids, valid_transforms)
@@ -66,10 +64,8 @@ for fold, (train_ids, valid_ids) in enumerate(k_fold.split(dataset)):
 
     for epoch in range(args.epochs):
 
-        train_acc, train_loss = run(
-            device, train_loader, model, summary, epoch, task='Train', optimizer=optimizer)
-        test_acc, test_loss = run(
-            device, valid_loader, model, summary, epoch, task='Test')
+        train_acc, train_loss = run(device, train_loader, model, summary, epoch, task='Train', optimizer=optimizer)
+        test_acc, test_loss = run(device, valid_loader, model, summary, epoch, task='Test')
         print('Epoch: {} Train Acc/Loss: {:.2f}/{:.2f} Test Acc/Loss: {:.2f}/{:.2f} Lr: {:.4f}'.format(
             epoch, train_acc, train_loss, test_acc, test_loss, optimizer.param_groups[0]['lr']))
 
