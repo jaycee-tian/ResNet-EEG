@@ -64,8 +64,8 @@ for fold, (train_ids, valid_ids) in enumerate(k_fold.split(dataset)):
 
     for epoch in range(args.epochs):
 
-        train_acc, train_loss = run(device, train_loader, model, summary, epoch, task='Train', optimizer=optimizer)
-        test_acc, test_loss = run(device, valid_loader, model, summary, epoch, task='Test')
+        train_acc, train_loss = run(str(fold), device, train_loader, model, summary, epoch, task='Train', optimizer=optimizer)
+        test_acc, test_loss = run(str(fold), device, valid_loader, model, summary, epoch, task='Test')
         print('Epoch: {} Train Acc/Loss: {:.2f}/{:.2f} Test Acc/Loss: {:.2f}/{:.2f} Lr: {:.4f}'.format(
             epoch, train_acc, train_loss, test_acc, test_loss, optimizer.param_groups[0]['lr']))
 

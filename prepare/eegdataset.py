@@ -326,7 +326,7 @@ class FeatureEEGImageDataset(BaseEEGImageDataset):
         self.desc = desc
         self.opt = opt
         self.feature = feature
-        self.feature_num = grid_size*grid_size*feature_rate
+        self.feature_num = int(grid_size*grid_size*feature_rate)
 
     def __getitem__(self, idx):
         filepath = self.filepaths[idx]

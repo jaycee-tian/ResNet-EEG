@@ -5,7 +5,7 @@ import pywt
 from utils.eegutils import clip_img, clip_imgs
 import numpy as np
 
-import torch_dct as dct_2d
+from scipy.fftpack import dct
 import torch
 import numpy as np
 
@@ -306,7 +306,7 @@ def get_dct_image_list(image_list, indexes):
     dct_image_list = []
     for index in indexes:
         image = image_list[index]
-        dct_image = dct_2d(image)
+        dct_image = dct(dct(image.T, norm='ortho').T, norm='ortho')
         dct_image_list.append(dct_image)
     return dct_image_list
 

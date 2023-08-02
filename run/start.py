@@ -129,7 +129,7 @@ def get_args():
     parser.add_argument('--model_name', type=str,
                         default='resnet18', help='model name')
     parser.add_argument('--feature', type=str,
-                        default='dct', help='dct, wavelet, all, none')
+                        default='all', help='dct, wavelet, all, none')
     parser.add_argument('--feature_rate', type=float, default=0.25, help='0, 0.25, 0.5, 0.75, 1')
     parser.add_argument('--pretrain', action='store_true', help='pretrain or not')
     parser.add_argument('--num_classes', type=int,
@@ -147,7 +147,7 @@ def get_args():
     return args
 
 
-def run(device, loader, model, summary, epoch, task='Test', alpha=0.0, smoothing=0.0, optimizer=None):
+def run(fold, device, loader, model, summary, epoch, task='Test', alpha=0.0, smoothing=0.0, optimizer=None):
     correct = 0
     loss = 0
     y_true = []
@@ -211,8 +211,8 @@ def run(device, loader, model, summary, epoch, task='Test', alpha=0.0, smoothing
 
     # cm = confusion_matrix(y_true, y_pred)
     # fig = plot_cm(cm)
-    summary.add_scalar(tag=task+'Acc', scalar_value=acc, global_step=epoch)
-    summary.add_scalar(tag=task+'Loss', scalar_value=loss, global_step=epoch)
+    summary.add_scalar(tag='fold: '+fold+'/'+task+'Acc', scalar_value=acc, global_step=epoch)
+    summary.add_scalar(tag='fold: '+fold+'/'+task+'Loss', scalar_value=loss, global_step=epoch)
     # summary.add_figure(tag=task+"CM", figure=fig, global_step=epoch)
     return acc, loss
 
